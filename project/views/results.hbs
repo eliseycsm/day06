@@ -2,5 +2,30 @@
     <h1>Search results for : {{searchTerm}}</h1>
     <hr>
     
+    <table>
+        <th>
+        <thead>
+            <th>NAME</th>
+            <th>CATEGORY</th>
+            <th>RATING</th>
+            <th>INSTALLS</th>
+        </thead>
+        </th>
+        {{#each recs}}
+        <tr>
+            <td>{{this.name}}</td>
+            <td>{{this.category}}</td>
+            <td>{{this.rating}}</td>
+            <td>{{this.installs}}</td>
+        </tr>
+        {{/each}}
+    </table>
+
+    <div class="nav d-flex flex-space-around">
+        <form action="/pagination" method="get">
+            <button type="submit" name="page" id="prev" value="previous">Previous</button>
+            <button type="submit" name="page" id="next" value="next">Next</button>
+        </form>
+    </div>
 
 </div>
