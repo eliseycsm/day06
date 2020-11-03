@@ -6,7 +6,7 @@ const mysql = require('mysql2/promise') //we want the driver with promise
 //normal mysql2 calling doesnt have promise
 
 //SQL
-const SQL_FIND_BY_NAME = 'select * from apps where name like ? limit ?'
+const SQL_FIND_BY_NAME_OFFSET = 'select * from apps where name like ? limit ? offset ?'
 /* NEVER USE STRING CONCATENATION WITH SQL QUERY, USE PLACEHOLDERS [?] */
 //IF HAVE MULTIPLE STATEMENTS IN QUERY NEED TO ADD SEMI-COLON, ELSE NO NEED TO ADD
 //USE MULTIPLESTATEMENTS BY SETTING multipleStatements:true in pool
@@ -27,6 +27,7 @@ app.set('views', __dirname + '/views')  //set appn props settings, defaults to t
 //create database connection pool
 
 const pool = mysql.createPool({
+
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 3306,
     database: process.env.DB_NAME || 'playstore',
@@ -47,7 +48,7 @@ const startApp = async(app, pool) => {
         const conn = await pool.getConnection()
 
         console.info('Pinging database...')
-        await conn.ping()
+        await conn.ping() // note ping doesnt return any value but the promise wrapper makes it return either a resolve/reject
 
         //release connection
         conn.release()
@@ -62,41 +63,58 @@ const startApp = async(app, pool) => {
 
 }
 
+
+
+
+
 //what we want to do: retrieve 1st 20 entries with calculator in name 
 //      select * from apps where name like '%calculator%' limit 20;
 
 //config appn
 app.get("/", (req, resp) => {
+    RESULT_OFFSET = 0
     resp.status(200)
     resp.type('text/html')
     resp.render('index')
+    
 })
 
+
+
+var RESULT_OFFSET = 0
 app.get("/search", 
     async (req, resp) => {
         
         const searchTerm = req.query['q']
+        const offsetTrue = req.query['page']
+
+        if (offsetTrue == "add20") {
+            RESULT_OFFSET += 20
+        } else if (offsetTrue == "minus20") { //loadPage = minus20
+            RESULT_OFFSET -=20
+        }
         
         //connection works with a promise, so we need to add async to our callback function
         //acquire a connection from the pool
         const conn = await pool.getConnection()
+        const displayRows = 20
 
         try {
             
             //perform the query
             // select * from apps where name like ? limit ? - placeholders take values frm arr by order
-            const result = await conn.query(SQL_FIND_BY_NAME, [ `%${searchTerm}%`, 20])//with sql, it alr knows params are strings, so no need '' ard the ?s.
+            const result = await conn.query(SQL_FIND_BY_NAME_OFFSET, [ `%${searchTerm}%`, displayRows, RESULT_OFFSET])//with sql, it alr knows params are strings, so no need '' ard the ?s.
             //result is an array of 2 results; 1st elem is an array of the 20 records; 2nd elem is the metadata of the records
             const recs = result[0] //or use const [recs, _] - await conn.query to get recs
             
             resp.status(200)
             resp.type('text/html')
-
-            if (recs.length == 0) {//note arr returns true even if empty
-                resp.render("noResults")
-            } else {
-                resp.render('results', {searchTerm, recs})
-            }
+            resp.render('results', {
+                searchTerm:searchTerm, 
+                recs: recs,
+                noResults: recs.length == 0,
+                dataIsOffset: RESULT_OFFSET > 0,
+                })
 
         }catch(e) {
 
@@ -111,19 +129,26 @@ app.get("/search",
         
 })
 
-app.get("/pagination", (req, resp) => {
-    const loadPage = req.query['page']
-    if (loadPage == "next") {
+
+
+/* app.get("/pagination",
+    async (req, resp) => {
+        const loadPage = req.query['page']
+
         const SQL_FIND_BY_NAME_OFFSET = 'select * from apps where name like ? limit ? offset ?'
-        const vals = [`%${searchTerm}`, 20, 20] //offset val needs to be multiplied by no. of calls
-
-
-    } else { //loadPage = previous
-
-    }
-
-
+        const vals = [`%${searchTerm}`, 20, RESULT_OFFSET] //offset val needs to be multiplied by no. of calls
+        
+        const result = await conn.query(SQL_FIND_BY_NAME_OFFSET, [ `%${searchTerm}%`, 20, RESULT_OFFSET])
+        
+        resp.status(200)
+        resp.type('text/html')
+        resp.render('results', {
+            searchTerm:searchTerm, 
+            recs: recs,
+            noResults: recs.length == 0,
+            dataIsOffset: RESULT_OFFSET > 0
+            })
 })
-
+ */
 
 startApp(app, pool)

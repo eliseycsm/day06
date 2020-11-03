@@ -1,31 +1,40 @@
 <div class="container">
     <h1>Search results for : {{searchTerm}}</h1>
     <hr>
+    {{#if noResults}}
+        Search returns no results.
+    {{else}}
+        <table>
+            <th>
+            <thead>
+                <th>NAME</th>
+                <th>CATEGORY</th>
+                <th>RATING</th>
+                <th>INSTALLS</th>
+            </thead>
+            </th>
+            {{#each recs}}
+            <tr>
+                <td>{{this.name}}</td>
+                <td>{{this.category}}</td>
+                <td>{{this.rating}}</td>
+                <td>{{this.installs}}</td>
+            </tr>
+            {{/each}}
+        </table>
+
     
-    <table>
-        <th>
-        <thead>
-            <th>NAME</th>
-            <th>CATEGORY</th>
-            <th>RATING</th>
-            <th>INSTALLS</th>
-        </thead>
-        </th>
-        {{#each recs}}
-        <tr>
-            <td>{{this.name}}</td>
-            <td>{{this.category}}</td>
-            <td>{{this.rating}}</td>
-            <td>{{this.installs}}</td>
-        </tr>
-        {{/each}}
-    </table>
-
-    <div class="nav d-flex flex-space-around">
-        <form action="/pagination" method="get">
-            <button type="submit" name="page" id="prev" value="previous">Previous</button>
-            <button type="submit" name="page" id="next" value="next">Next</button>
-        </form>
-    </div>
-
+        <div class="nav d-flex flex-space-around">
+            <form action="/search" method="get">
+                {{#if dataIsOffset}}
+                    <button type="submit" name="page" id="previous" value="prev">Previous</button>
+                    <button type="submit" name="page" id="next" value="next">Next</button>
+                {{else}}
+                    <button type="submit" name="page" id="next" value="next">Next</button>
+                {{/if}}
+                    <input type="hidden" name="q" value={{searchTerm}}>
+                    <input type="hidden" name="offset" value={{offset}}>
+            </form>
+        </div>
+    {{/if}}
 </div>
