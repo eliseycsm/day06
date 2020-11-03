@@ -28,7 +28,6 @@ const app = express()
 //configure handlebars
 app.engine('hbs', handlebars({defaultLayout: 'default.hbs'}))
 app.set('view engine', 'hbs')
-app.set('views', __dirname + '/views')  //set appn props settings, defaults to the views dir in the appn root dir
 
 
 //create database connection pool
@@ -49,7 +48,6 @@ const pool = mysql.createPool({
 const startApp = async(app, pool) => {
     try{
         //acquire connection from connection pool
-
         const conn = await pool.getConnection()
 
         console.info('Pinging database...')
@@ -81,7 +79,6 @@ app.get("/", (req, resp) => {
     resp.status(200)
     resp.type('text/html')
     resp.render('index')
-    
 })
 
 
@@ -135,22 +132,20 @@ app.get("/search",
         
 })
 
-app.get('/app/:appId'), async (req, resp) => {
-    const appId = req.params.appId
+app.get("/app/:appId", async (req, resp) => {
+    const appId = req.params['appId']
     console.info(appId)
 
     const conn = await pool.getConnection()
 
     try {
-        
         const result = await conn.query(SQL_GET_APP_BY_ID, [appId])
-        const recs = result[0] 
+        const recs = result[0]
         
-
         if (recs.length <= 0) {
             resp.status(404)
             resp.type('text/html')
-            resp.send("Not found: ", appId)    
+            resp.send("Not found: ", appId)  
             return
         }
         
@@ -172,14 +167,15 @@ app.get('/app/:appId'), async (req, resp) => {
 
 
     }catch(e) {
-
+        resp.status(500).type('text/html')
+        resp.send(JSON.stringify(e))
     } finally { //finally block to always close connection (regardless of error or no error) and finish
         //if there is return function in try block, code will go to finally first before returning
-        await conn.release() // always close connection, so putting it here will ensure that
+        conn.release() // always close connection, so putting it here will ensure that
         
     }
 
-}
+})
 
 
 
@@ -188,7 +184,6 @@ app.get("/indexes", async (req, resp) => {
     const conn = await pool.getConnection()
 
     try {
-        
         const result = await conn.query('select app_id, name from apps limit ? offset ?', [20, 0])//with sql, it alr knows params are strings, so no need '' ard the ?s.
         //result is an array of 2 results; 1st elem is an array of the 20 records; 2nd elem is the metadata of the records
         const recs = result[0] //or use const [recs, _] - await conn.query to get recs
@@ -200,10 +195,12 @@ app.get("/indexes", async (req, resp) => {
             })
 
     }catch(e) {
-
+        resp.status(500)
+        resp.type('text/html')
+        resp.send(JSON.stringify(e))
     } finally { //finally block to always close connection (regardless of error or no error) and finish
         //if there is return function in try block, code will go to finally first before returning
-        await conn.release() // always close connection, so putting it here will ensure that
+        conn.release() // always close connection, so putting it here will ensure that
         
     }
 
