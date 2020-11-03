@@ -5,8 +5,15 @@ const handlebars = require('express-handlebars')
 const mysql = require('mysql2/promise') //we want the driver with promise
 //normal mysql2 calling doesnt have promise
 
+//const r = require('./apps')  >> all the app.gets imported over to apps
+//const router = r(pool)  // r(pool, "/menu") to mount into the prefix as well
+//app.use(router)
+
+//mounting router onto v1 prefix: app.use('/v1', router)  <- use matches the prefix, while get and post matches literal
+
 //SQL
 const SQL_FIND_BY_NAME_OFFSET = 'select * from apps where name like ? limit ? offset ?'
+const SQL_GET_APP_BY_ID = 'select * from apps where app_id = ?'
 /* NEVER USE STRING CONCATENATION WITH SQL QUERY, USE PLACEHOLDERS [?] */
 //IF HAVE MULTIPLE STATEMENTS IN QUERY NEED TO ADD SEMI-COLON, ELSE NO NEED TO ADD
 //USE MULTIPLESTATEMENTS BY SETTING multipleStatements:true in pool
@@ -36,8 +43,6 @@ const pool = mysql.createPool({
     connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 4,
     //other attributes we need include timezone and connectionTimeOut
     timezone: '+08:00'
-
-
 })
 
 //ping our db to make sure there is a connection btwn pool and database
@@ -86,11 +91,12 @@ app.get("/search",
     async (req, resp) => {
         
         const searchTerm = req.query['q']
-        const offsetTrue = req.query['page']
+        const offsetTrue = req.query['page'] 
+        //const offsetVal = parseInt(req.query['page']) || 0
 
-        if (offsetTrue == "add20") {
+        if (offsetTrue == "next") {
             RESULT_OFFSET += 20
-        } else if (offsetTrue == "minus20") { //loadPage = minus20
+        } else if (offsetTrue == "prev") { //loadPage = minus20
             RESULT_OFFSET -=20
         }
         
@@ -127,6 +133,80 @@ app.get("/search",
 
         //hw: set up tv.sql and give permission to wilma
         
+})
+
+app.get('/app/:appId'), async (req, resp) => {
+    const appId = req.params.appId
+    console.info(appId)
+
+    const conn = await pool.getConnection()
+
+    try {
+        
+        const result = await conn.query(SQL_GET_APP_BY_ID, [appId])
+        const recs = result[0] 
+        
+
+        if (recs.length <= 0) {
+            resp.status(404)
+            resp.type('text/html')
+            resp.send("Not found: ", appId)    
+            return
+        }
+        
+        resp.status(200)
+        resp.format({
+            'text/html': () => {
+                resp.type('text/html')
+                resp.render('app', {app: recs[0]})
+            }, 
+            'application/json': () => {
+                resp.type('application/json')
+                resp.json(recs[0])
+            },
+            'default': () => {
+                resp.type('text/plain')
+                resp.send(JSON.stringify(recs[0]))
+            }
+        })
+
+
+    }catch(e) {
+
+    } finally { //finally block to always close connection (regardless of error or no error) and finish
+        //if there is return function in try block, code will go to finally first before returning
+        await conn.release() // always close connection, so putting it here will ensure that
+        
+    }
+
+}
+
+
+
+app.get("/indexes", async (req, resp) => {
+
+    const conn = await pool.getConnection()
+
+    try {
+        
+        const result = await conn.query('select app_id, name from apps limit ? offset ?', [20, 0])//with sql, it alr knows params are strings, so no need '' ard the ?s.
+        //result is an array of 2 results; 1st elem is an array of the 20 records; 2nd elem is the metadata of the records
+        const recs = result[0] //or use const [recs, _] - await conn.query to get recs
+        
+        resp.status(200)
+        resp.type('text/html')
+        resp.render('indexes', {
+            apps: recs
+            })
+
+    }catch(e) {
+
+    } finally { //finally block to always close connection (regardless of error or no error) and finish
+        //if there is return function in try block, code will go to finally first before returning
+        await conn.release() // always close connection, so putting it here will ensure that
+        
+    }
+
 })
 
 
