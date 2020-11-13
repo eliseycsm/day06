@@ -25,15 +25,25 @@
 
     <!-- navi buttons -->
         <div class="nav d-flex flex-space-around">
+            
+            {{#if havePrev}}
             <form action="/search" method="get">
-                {{#if dataIsOffset}}
-                    <button type="submit" name="page" id="previous" value="prev">Previous</button>
-                    <button type="submit" name="page" id="next" value="next">Next</button>
-                {{else}}
-                    <button type="submit" name="page" id="next" value="next">Next</button>
-                {{/if}}
-                    <input type="hidden" name="q" value={{searchTerm}}>
-                    <input type="hidden" name="offset" value={{offset}}>
+                <input type="hidden" name="q" value={{searchTerm}}>
+                <input type="hidden" name="offset" value={{prevOffset}}>
+                <button type="submit" name="page" id="previous">Previous</button>   
+            </form>
+            {{/if}}
+
+            {{#if haveNext}}
+            <form action="/search" method="get">
+                <input type="hidden" name="q" value={{searchTerm}}>
+                <input type="hidden" name="offset" value={{nextOffset}}>
+                <button type="submit" name="page" id="next">Next</button>
+                
+            </form>
+            {{/if}}
+                    
+                    
             </form>
         </div>
     {{/if}}

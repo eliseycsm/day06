@@ -1,11 +1,10 @@
 //load express handlebars mysql2
-
 const express = require('express')
 const handlebars = require('express-handlebars')
 const mysql = require('mysql2/promise') //we want the driver with promise
 //normal mysql2 calling doesnt have promise
 
-//const r = require('./apps')  >> all the app.gets imported over to apps
+//const r = require('./apps')  >> all the app.gets that we put in apps is imported in
 //const router = r(pool)  // r(pool, "/menu") to mount into the prefix as well
 //app.use(router)
 
@@ -14,6 +13,7 @@ const mysql = require('mysql2/promise') //we want the driver with promise
 //SQL
 const SQL_FIND_BY_NAME_OFFSET = 'select * from apps where name like ? limit ? offset ?'
 const SQL_GET_APP_BY_ID = 'select * from apps where app_id = ?'
+const SQL_COUNT_Q = ' select count(*) as q_count from apps where name like ?'
 /* NEVER USE STRING CONCATENATION WITH SQL QUERY, USE PLACEHOLDERS [?] */
 //IF HAVE MULTIPLE STATEMENTS IN QUERY NEED TO ADD SEMI-COLON, ELSE NO NEED TO ADD
 //USE MULTIPLESTATEMENTS BY SETTING multipleStatements:true in pool
@@ -31,7 +31,6 @@ app.set('view engine', 'hbs')
 
 
 //create database connection pool
-
 const pool = mysql.createPool({
 
     host: process.env.DB_HOST || 'localhost',
@@ -45,6 +44,7 @@ const pool = mysql.createPool({
 })
 
 //ping our db to make sure there is a connection btwn pool and database
+
 const startApp = async(app, pool) => {
     try{
         //acquire connection from connection pool
@@ -68,8 +68,6 @@ const startApp = async(app, pool) => {
 
 
 
-
-
 //what we want to do: retrieve 1st 20 entries with calculator in name 
 //      select * from apps where name like '%calculator%' limit 20;
 
@@ -83,47 +81,52 @@ app.get("/", (req, resp) => {
 
 
 
-var RESULT_OFFSET = 0
 app.get("/search", 
     async (req, resp) => {
         
         const searchTerm = req.query['q']
-        const offsetTrue = req.query['page'] 
-        //const offsetVal = parseInt(req.query['page']) || 0
-
-        if (offsetTrue == "next") {
-            RESULT_OFFSET += 20
-        } else if (offsetTrue == "prev") { //loadPage = minus20
-            RESULT_OFFSET -=20
-        }
+        const offset = parseInt(req.query['offset']) || 0
+        const displayRows = 20 
         
         //connection works with a promise, so we need to add async to our callback function
         //acquire a connection from the pool
-        const conn = await pool.getConnection()
-        const displayRows = 20
+        let conn;
 
         try {
-            
+            //connect to pool
+            conn = await pool.getConnection()
+
             //perform the query
             // select * from apps where name like ? limit ? - placeholders take values frm arr by order
-            const result = await conn.query(SQL_FIND_BY_NAME_OFFSET, [ `%${searchTerm}%`, displayRows, RESULT_OFFSET])//with sql, it alr knows params are strings, so no need '' ard the ?s.
+            let result = await conn.query(SQL_FIND_BY_NAME_OFFSET, [ `%${searchTerm}%`, displayRows, offset])
+            //with sql, it alr knows params are strings, so no need '' ard the ?s.
             //result is an array of 2 results; 1st elem is an array of the 20 records; 2nd elem is the metadata of the records
-            const recs = result[0] //or use const [recs, _] - await conn.query to get recs
+            let recs = result[0] //or use const [recs, _] - await conn.query to get recs
             
+            //get total no. of results for pagination calculation
+            result = await conn.query(SQL_COUNT_Q, [`%${searchTerm}%`])
+            const queryCount = result[0][0].q_count
+            console.info('nextOffset =', offset+displayRows )
+
             resp.status(200)
             resp.type('text/html')
             resp.render('results', {
                 searchTerm:searchTerm, 
                 recs: recs,
                 noResults: recs.length == 0,
-                dataIsOffset: RESULT_OFFSET > 0,
+                prevOffset: Math.max(0, offset - displayRows),
+                havePrev: (offset - displayRows) >= 0, 
+                nextOffset: offset + displayRows,
+                haveNext: (offset + displayRows) <= queryCount
                 })
 
         }catch(e) {
-
+            resp.status(200).type('text/html')
+            resp.send('Error: '+ e)
         } finally { //finally block to always close connection (regardless of error or no error) and finish
             //if there is return function in try block, code will go to finally first before returning
-            await conn.release() // always close connection, so putting it here will ensure that
+            if(conn)
+                conn.release() // always close connection, so putting it here will ensure that
             
         }
         //hw: add in code for no results + add prev and next buttons for pagination
