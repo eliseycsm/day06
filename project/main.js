@@ -209,26 +209,4 @@ app.get("/indexes", async (req, resp) => {
 
 })
 
-
-
-/* app.get("/pagination",
-    async (req, resp) => {
-        const loadPage = req.query['page']
-
-        const SQL_FIND_BY_NAME_OFFSET = 'select * from apps where name like ? limit ? offset ?'
-        const vals = [`%${searchTerm}`, 20, RESULT_OFFSET] //offset val needs to be multiplied by no. of calls
-        
-        const result = await conn.query(SQL_FIND_BY_NAME_OFFSET, [ `%${searchTerm}%`, 20, RESULT_OFFSET])
-        
-        resp.status(200)
-        resp.type('text/html')
-        resp.render('results', {
-            searchTerm:searchTerm, 
-            recs: recs,
-            noResults: recs.length == 0,
-            dataIsOffset: RESULT_OFFSET > 0
-            })
-})
- */
-
 startApp(app, pool)
