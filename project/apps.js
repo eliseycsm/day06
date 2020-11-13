@@ -1,8 +1,6 @@
 //load express
 const express = require('express')
 
-
-
 const SQL_FIND_BY_NAME_OFFSET = 'select * from apps where name like ? limit ? offset ?'
 const SQL_GET_APP_BY_ID = 'select * from apps where app_id=?'
 const SQL_GET_APPS = 'select app_id, name from apps limit ? offset ?'
@@ -57,11 +55,10 @@ router.get('/app/:appId'), async (req, resp) => {
 
 
     }catch(e) {
-
+        console.error('Error!', e)
     } finally { //finally block to always close connection (regardless of error or no error) and finish
         //if there is return function in try block, code will go to finally first before returning
-        await conn.release() // always close connection, so putting it here will ensure that
-        
+        conn.release() // always close connection, so putting it here will ensure that
     }
 
 }
@@ -88,7 +85,7 @@ router.get("/indexes", async (req, resp) => {
 
     } finally { //finally block to always close connection (regardless of error or no error) and finish
         //if there is return function in try block, code will go to finally first before returning
-        await conn.release() // always close connection, so putting it here will ensure that
+        conn.release() // always close connection, so putting it here will ensure that
         
     }
 
